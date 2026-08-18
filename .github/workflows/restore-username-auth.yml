@@ -1,0 +1,25 @@
+name: Restore username-only auth
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-username-auth.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore username-only cloud auth
+        run: |
+          git show 08ee8183eedef09031c6ae6fcf2d56037222878d:cloud.js > cloud.js
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud.js
+          git commit -m "Remove email verification and restore username auth" || exit 0
+          git push
