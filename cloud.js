@@ -6,36 +6,55 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let session=null,profile=null,settings=null,lastLocalNotes='',syncTimer=null;
 const site=()=>$('#site');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const cleanUsername=v=>String(v??'').trim().toLowerCase();
-const internalEmail=username=>`${cleanUsername(username)}@accounts.veiled.invalid`;
+const cleanUsername=v=>String(v??'').trim();
 function removeOverlay(){document.querySelectorAll('.cloud-auth-overlay,.cloud-block-overlay').forEach(x=>x.remove())}
 async function getSettings(){const {data}=await sb.from('site_settings').select('*').eq('id',1).single();settings=data||{maintenance_mode:false,allow_signups:true,announcement:''};return settings}
 function gateOpened(){return localStorage.getItem('veiledEntered')==='true'||$('#veilGate')?.classList.contains('hidden')}
 function block(title,msg,ownerLogin=false){removeOverlay();site()?.classList.add('hidden');const d=document.createElement('div');d.className='cloud-block-overlay';d.innerHTML=`<div class="cloud-block-card"><div class="maintenance-seal">☾</div><div class="eyebrow">VEILED STATUS</div><h2>${esc(title)}</h2><p>${esc(msg)}</p>${ownerLogin?'<button id="ownerLoginFromBlock" class="primary-btn">Owner / Admin Sign In</button>':''}</div>`;document.body.appendChild(d);if(ownerLogin)$('#ownerLoginFromBlock').onclick=()=>showAuth(true)}
+function showVerify(email){
+  removeOverlay();site()?.classList.add('hidden');
+  const d=document.createElement('div');d.className='cloud-auth-overlay';
+  d.innerHTML=`<div class="cloud-auth-card"><div class="maintenance-seal">✦</div><div class="eyebrow">VERIFY YOUR GRIMOIRE</div><h2>Enter Your Verification Rune</h2><p>We sent a 6-digit code to <b>${esc(email)}</b>.</p><input id="authCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="text-align:center;letter-spacing:.35em;font-size:1.35rem"><button id="verifyCode" class="primary-btn">Verify Code</button><button id="resendCode" class="secondary-btn" style="margin-top:10px">Send Another Code</button><button id="backToAuth" class="text-btn" style="margin-top:10px">Use a different email</button><div id="authMsg" class="cloud-auth-message"></div><p class="cloud-small">Never share this code with anyone. VEILED staff will never ask you for it.</p></div>`;
+  document.body.appendChild(d);
+  const verify=async()=>{
+    const token=$('#authCode').value.trim(),msg=$('#authMsg');
+    if(!/^\d{6}$/.test(token)){msg.textContent='Enter the 6-digit code from your email.';return}
+    msg.textContent='Opening your grimoire…';$('#verifyCode').disabled=true;
+    const {error}=await sb.auth.verifyOtp({email,token,type:'email'});
+    if(error){msg.textContent='That code is invalid or expired. Try again or send another code.';$('#verifyCode').disabled=false;return}
+    await bootUser();
+  };
+  $('#verifyCode').onclick=verify;
+  $('#authCode').addEventListener('keydown',e=>{if(e.key==='Enter')verify()});
+  $('#resendCode').onclick=async()=>{const msg=$('#authMsg');msg.textContent='Sending another code…';const {error}=await sb.auth.resend({type:'signup',email});msg.textContent=error?error.message:'A fresh verification rune was sent.'};
+  $('#backToAuth').onclick=()=>showAuth(false);
+}
 function showAuth(signInOnly=false){
   removeOverlay();site()?.classList.add('hidden');
   const d=document.createElement('div');d.className='cloud-auth-overlay';
-  d.innerHTML=`<div class="cloud-auth-card"><div class="maintenance-seal">✦</div><div class="eyebrow">THE VEILED GRIMOIRE</div><h2>Enter Your Grimoire</h2><p>Use a VEILED username and password. No email is required.</p><div class="cloud-auth-tabs"><button id="tabIn" class="active">Sign In</button><button id="tabUp" ${signInOnly||settings?.allow_signups===false?'disabled':''}>Create Account</button></div><input id="authUser" autocomplete="username" maxlength="20" placeholder="Username"><input id="authPass" type="password" autocomplete="current-password" placeholder="Password"><button id="authGo" class="primary-btn">Sign In</button><div id="authMsg" class="cloud-auth-message"></div><p class="cloud-small">Usernames use letters, numbers, or underscores. Keep your password safe—email password recovery is not available with this no-email setup.</p></div>`;
+  d.innerHTML=`<div class="cloud-auth-card"><div class="maintenance-seal">✦</div><div class="eyebrow">THE VEILED GRIMOIRE</div><h2>Enter Your Grimoire</h2><p>Sign in with your email, or create a VEILED account and verify it with a 6-digit code.</p><div class="cloud-auth-tabs"><button id="tabIn" class="active">Sign In</button><button id="tabUp" ${signInOnly||settings?.allow_signups===false?'disabled':''}>Create Account</button></div><input id="authName" class="hidden" maxlength="20" autocomplete="username" placeholder="VEILED username"><input id="authEmail" type="email" autocomplete="email" placeholder="Email address"><input id="authPass" type="password" autocomplete="current-password" placeholder="Password"><button id="authGo" class="primary-btn">Sign In</button><div id="authMsg" class="cloud-auth-message"></div><p class="cloud-small">New accounts receive a one-time verification code by email. Your password is never sent by email.</p></div>`;
   document.body.appendChild(d);
   let mode='signin';
-  const selectMode=next=>{mode=next;$('#tabIn').classList.toggle('active',next==='signin');$('#tabUp').classList.toggle('active',next==='signup');$('#authGo').textContent=next==='signup'?'Create Account':'Sign In';$('#authPass').autocomplete=next==='signup'?'new-password':'current-password';$('#authMsg').textContent=''};
+  const selectMode=next=>{mode=next;$('#tabIn').classList.toggle('active',next==='signin');$('#tabUp').classList.toggle('active',next==='signup');$('#authName').classList.toggle('hidden',next!=='signup');$('#authGo').textContent=next==='signup'?'Create Account':'Sign In';$('#authPass').autocomplete=next==='signup'?'new-password':'current-password';$('#authMsg').textContent=''};
   $('#tabIn').onclick=()=>selectMode('signin');
   if($('#tabUp')&&!$('#tabUp').disabled)$('#tabUp').onclick=()=>selectMode('signup');
   const submit=async()=>{
-    const username=cleanUsername($('#authUser').value),password=$('#authPass').value,msg=$('#authMsg');
-    if(!/^[a-z0-9_]{3,20}$/.test(username)){msg.textContent='Username must be 3–20 characters using letters, numbers, or underscores.';return}
+    const username=cleanUsername($('#authName').value),email=$('#authEmail').value.trim().toLowerCase(),password=$('#authPass').value,msg=$('#authMsg');
+    if(!/^\S+@\S+\.\S+$/.test(email)){msg.textContent='Enter a valid email address.';return}
     if(password.length<8){msg.textContent='Password must be at least 8 characters.';return}
+    if(mode==='signup'&&!/^[A-Za-z0-9_]{3,20}$/.test(username)){msg.textContent='Username must be 3–20 characters using letters, numbers, or underscores.';return}
     msg.textContent='Working…';$('#authGo').disabled=true;
     try{
       if(mode==='signup'){
-        const {data,error}=await sb.functions.invoke('username-signup',{body:{username,password}});
-        if(error){msg.textContent='Could not create the account right now.';return}
-        if(data?.error){msg.textContent=data.error;return}
+        const {data,error}=await sb.auth.signUp({email,password,options:{data:{display_name:username,veiled_username:username}}});
+        if(error){msg.textContent=error.message;return}
+        if(data?.session){await bootUser();return}
+        showVerify(email);return;
       }
-      const res=await sb.auth.signInWithPassword({email:internalEmail(username),password});
-      if(res.error){msg.textContent=mode==='signup'?'Account was created, but automatic sign-in failed. Try the Sign In tab.':'Username or password is incorrect.';return}
+      const res=await sb.auth.signInWithPassword({email,password});
+      if(res.error){msg.textContent='Email or password is incorrect, or this account has not been verified yet.';return}
       await bootUser();
-    }finally{$('#authGo')&&($('#authGo').disabled=false)}
+    }finally{if($('#authGo'))$('#authGo').disabled=false}
   };
   $('#authGo').onclick=submit;
   $('#authPass').addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
@@ -43,7 +62,7 @@ function showAuth(signInOnly=false){
 async function fetchProfile(){if(!session)return null;let {data}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(!data){await new Promise(r=>setTimeout(r,500));({data}=await sb.from('profiles').select('*').eq('id',session.user.id).single())}profile=data;return data}
 function displayName(){return profile?.display_name||session?.user?.user_metadata?.veiled_username||'VEILED Member'}
 function addAccountChip(){if($('#accountChip'))return;$('.top-tools')?.insertAdjacentHTML('beforeend',`<button id="accountChip" class="account-chip"><span class="cloud-sync-dot"></span>${esc(displayName())}</button>`);$('#accountChip').onclick=openAccount}
-function openAccount(){const modal=$('#modal'),body=$('#modalBody');body.innerHTML=`<div class="eyebrow">ACCOUNT</div><h2>${esc(displayName())}</h2><p><b>Role:</b> ${esc(profile?.role||'user')} · <b>Status:</b> ${esc(profile?.status||'active')}</p>${profile?.role==='user'?'<div class="info-banner"><b>Owner setup:</b> If this is the first account, you can claim the owner role with the one-time setup code.</div><input id="ownerClaimCode" class="owner-input" placeholder="Owner setup code"><button id="claimOwner" class="primary-btn" style="margin-top:10px">Claim Initial Owner</button>':''}<button id="signOutBtn" class="secondary-btn" style="margin-top:12px">Sign Out</button>`;modal.classList.remove('hidden');$('#signOutBtn').onclick=async()=>{await sb.auth.signOut();location.reload()};if($('#claimOwner'))$('#claimOwner').onclick=async()=>{const code=$('#ownerClaimCode').value.trim();const {data,error}=await sb.rpc('claim_initial_owner',{p_code:code});if(error||!data){alert('That code did not work, or an owner already exists.');return}await fetchProfile();modal.classList.add('hidden');location.reload()}}
+function openAccount(){const modal=$('#modal'),body=$('#modalBody');body.innerHTML=`<div class="eyebrow">ACCOUNT</div><h2>${esc(displayName())}</h2><p>${esc(session?.user?.email||'')}</p><p><b>Role:</b> ${esc(profile?.role||'user')} · <b>Status:</b> ${esc(profile?.status||'active')}</p>${profile?.role==='user'?'<div class="info-banner"><b>Owner setup:</b> If this is the first account, you can claim the owner role with the one-time setup code.</div><input id="ownerClaimCode" class="owner-input" placeholder="Owner setup code"><button id="claimOwner" class="primary-btn" style="margin-top:10px">Claim Initial Owner</button>':''}<button id="signOutBtn" class="secondary-btn" style="margin-top:12px">Sign Out</button>`;modal.classList.remove('hidden');$('#signOutBtn').onclick=async()=>{await sb.auth.signOut();location.reload()};if($('#claimOwner'))$('#claimOwner').onclick=async()=>{const code=$('#ownerClaimCode').value.trim();const {data,error}=await sb.rpc('claim_initial_owner',{p_code:code});if(error||!data){alert('That code did not work, or an owner already exists.');return}await fetchProfile();modal.classList.add('hidden');location.reload()}}
 function applyFeatureFlags(){const map=[['tarot','tarot_enabled'],['sigils','sigils_enabled'],['book','book_enabled']];map.forEach(([page,key])=>{const n=document.querySelector(`.nav[data-page="${page}"]`);if(n)n.classList.toggle('disabled-feature',settings&&settings[key]===false)});if(settings?.announcement&&!$('#announcementBanner')){$('.main')?.insertAdjacentHTML('afterbegin',`<div id="announcementBanner" class="announcement-banner">✦ ${esc(settings.announcement)}</div>`)}}
 async function loadCloudNotes(){const {data,error}=await sb.from('book_entries').select('*').order('created_at',{ascending:false});if(error)return;let local=[];try{local=JSON.parse(localStorage.getItem('veiledNotes')||'[]')}catch{}if((!local||!local.length)&&data?.length){local=data.map(x=>({id:x.local_id||x.id,title:x.title,category:x.category,body:x.body,date:new Date(x.created_at).toLocaleString()}));localStorage.setItem('veiledNotes',JSON.stringify(local));if(window.renderNotes)window.renderNotes()}await syncNotes()}
 async function syncNotes(){if(!session||!profile||profile.status!=='active'||!settings|| (settings.maintenance_mode&&!['owner','admin'].includes(profile.role)))return;let notes=[];try{notes=JSON.parse(localStorage.getItem('veiledNotes')||'[]')}catch{}const raw=JSON.stringify(notes);if(raw===lastLocalNotes)return;lastLocalNotes=raw;const rows=notes.map(n=>({user_id:session.user.id,local_id:String(n.id),title:n.title||'Untitled Page',category:n.category||'Journal',body:n.body||''}));if(rows.length)await sb.from('book_entries').upsert(rows,{onConflict:'user_id,local_id'});const {data:cloud}=await sb.from('book_entries').select('id,local_id');const keep=new Set(rows.map(r=>r.local_id));const stale=(cloud||[]).filter(x=>x.local_id&&!keep.has(x.local_id)).map(x=>x.id);if(stale.length)await sb.from('book_entries').delete().in('id',stale)}
