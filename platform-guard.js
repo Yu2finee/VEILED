@@ -39,4 +39,18 @@
     });
   });
   observer.observe(document.documentElement, {childList:true, subtree:true});
+
+  // Tawk.to live chat widget for VEILED.
+  window.Tawk_API = window.Tawk_API || {};
+  window.Tawk_LoadStart = new Date();
+  if (!document.querySelector('script[data-veiled-tawk]')) {
+    const s1 = document.createElement('script');
+    const s0 = document.getElementsByTagName('script')[0];
+    s1.async = true;
+    s1.src = 'https://embed.tawk.to/6a83f5febc557a344a5e2489/1k09nhqgl';
+    s1.charset = 'UTF-8';
+    s1.setAttribute('crossorigin', '*');
+    s1.setAttribute('data-veiled-tawk', 'true');
+    s0.parentNode.insertBefore(s1, s0);
+  }
 })();
