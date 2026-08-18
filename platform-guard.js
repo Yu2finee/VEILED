@@ -17,7 +17,7 @@
     panels.slice(1).forEach(panel => panel.remove());
 
     // The platform pages/nav are also singleton UI pieces.
-    ['academy','witchProfile','ownerInbox','researchLibrary'].forEach(id => {
+    ['academy','witchProfile','ownerInbox','researchLibrary','gathering'].forEach(id => {
       const pages = [...document.querySelectorAll(`#${id}`)];
       pages.slice(1).forEach(page => page.remove());
       const navs = [...document.querySelectorAll(`.nav[data-page="${id}"]`)];
@@ -40,7 +40,19 @@
   });
   observer.observe(document.documentElement, {childList:true, subtree:true});
 
-  // Tawk.to live chat widget for VEILED.
+  // Load The Gathering realtime community chat once.
+  if (!document.querySelector('link[data-veiled-chat-css]')) {
+    const link=document.createElement('link');
+    link.rel='stylesheet';link.href='chat.css';link.setAttribute('data-veiled-chat-css','true');
+    document.head.appendChild(link);
+  }
+  if (!document.querySelector('script[data-veiled-chat-js]')) {
+    const script=document.createElement('script');
+    script.src='chat.js';script.defer=true;script.setAttribute('data-veiled-chat-js','true');
+    document.body.appendChild(script);
+  }
+
+  // Tawk.to live support widget for VEILED.
   window.Tawk_API = window.Tawk_API || {};
   window.Tawk_LoadStart = new Date();
   if (!document.querySelector('script[data-veiled-tawk]')) {
