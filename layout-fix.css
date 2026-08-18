@@ -4,6 +4,41 @@
   min-height:100vh;
 }
 
+.sidebar{
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(198,168,106,.45) transparent;
+  padding-bottom:28px;
+}
+
+.sidebar::-webkit-scrollbar{
+  width:7px;
+}
+
+.sidebar::-webkit-scrollbar-track{
+  background:transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb{
+  background:rgba(198,168,106,.35);
+  border-radius:999px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover{
+  background:rgba(198,168,106,.55);
+}
+
+.sidebar nav{
+  flex:0 0 auto;
+}
+
+.side-note{
+  flex:0 0 auto;
+  margin-top:18px;
+}
+
 .main{
   margin-left:260px;
   width:calc(100% - 260px);
@@ -35,6 +70,8 @@
     position:static;
     width:100%;
     min-height:auto;
+    max-height:none;
+    overflow:visible;
   }
   .main{
     margin-left:0;
