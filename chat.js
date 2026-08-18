@@ -22,7 +22,10 @@
   function addChatPage(){
     if($('#gathering'))return;
     const nav=$('.sidebar nav'),main=$('.main');if(!nav||!main)return;
-    nav.insertAdjacentHTML('beforeend',`<button class="nav" data-page="gathering">✦ <span>The Gathering</span><i class="chat-dot"></i></button>`);
+    const protectionBtn=$('.nav[data-page="protection"]');
+    const chatBtnHtml=`<button class="nav" data-page="gathering">✦ <span>The Gathering</span><i class="chat-dot"></i></button>`;
+    if(protectionBtn) protectionBtn.insertAdjacentHTML('afterend',chatBtnHtml);
+    else nav.insertAdjacentHTML('beforeend',chatBtnHtml);
     main.insertAdjacentHTML('beforeend',`
       <section id="gathering" class="page">
         <div class="section-head"><div><div class="eyebrow">VEILED COMMUNITY</div><h1>The Gathering</h1><p>One shared room for VEILED members to talk, study, and help each other. Messages appear live without refreshing the page.</p></div></div>
