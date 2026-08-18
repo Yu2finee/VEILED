@@ -1,0 +1,86 @@
+/* VEILED layout patch: keeps the fixed sidebar from consuming a CSS grid column. */
+.site{
+  display:block;
+  min-height:100vh;
+}
+
+.main{
+  margin-left:260px;
+  width:calc(100% - 260px);
+  min-width:0;
+  padding:0 30px 50px;
+}
+
+.topbar{
+  width:100%;
+}
+
+.page,
+.hero,
+.dashboard-grid,
+.two-col,
+.lesson-grid,
+.herb-grid,
+.protection-grid,
+.sigil-layout,
+.wheel-layout,
+.tarot-layout,
+.book-layout{
+  min-width:0;
+}
+
+@media (max-width: 860px){
+  .site{display:block;}
+  .sidebar{
+    position:static;
+    width:100%;
+    min-height:auto;
+  }
+  .main{
+    margin-left:0;
+    width:100%;
+    padding:0 16px 36px;
+  }
+  .topbar{
+    position:sticky;
+    top:0;
+  }
+  .hero,
+  .sigil-layout,
+  .wheel-layout,
+  .tarot-layout,
+  .book-layout,
+  .two-col{
+    grid-template-columns:1fr;
+  }
+  .dashboard-grid,
+  .lesson-grid,
+  .herb-grid,
+  .protection-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 560px){
+  .dashboard-grid,
+  .lesson-grid,
+  .herb-grid,
+  .protection-grid{
+    grid-template-columns:1fr;
+  }
+  .top-tools{
+    gap:6px;
+  }
+  .moon-chip,
+  .ghost-btn{
+    padding:8px;
+    font-size:12px;
+  }
+  .hero{
+    padding:24px;
+  }
+  .hero h1,
+  .section-head h1{
+    font-size:38px;
+  }
+}
