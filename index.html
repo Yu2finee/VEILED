@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#13261e" />
+  <title>The Veiled Grimoire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="veilGate" class="veil-gate">
+    <div class="moon-orbit"><span>☾</span></div>
+    <div class="gate-card">
+      <div class="gate-sigil">✦</div>
+      <p class="eyebrow">THE VEIL IS CLOSED</p>
+      <h1>The Veiled Grimoire</h1>
+      <p class="gate-copy">A digital sanctuary for learning, reflection, folklore, Wicca, modern witchcraft, symbolism, and personal practice.</p>
+      <label for="veilWord">Speak the word carried between worlds.</label>
+      <div class="gate-input-wrap">
+        <input id="veilWord" autocomplete="off" spellcheck="false" placeholder="Enter the word" />
+        <button id="openVeil">Open the Veil</button>
+      </div>
+      <p id="gateHint" class="gate-hint">Hint: it means “light.”</p>
+      <p id="gateError" class="gate-error"></p>
+    </div>
+  </div>
+
+  <div id="site" class="site hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">☾</div>
+        <div><strong>VEILED</strong><span>THE DIGITAL GRIMOIRE</span></div>
+      </div>
+      <nav>
+        <button class="nav active" data-page="home">⌂ <span>Sanctuary</span></button>
+        <button class="nav" data-page="learn">✧ <span>Learn</span></button>
+        <button class="nav" data-page="herbs">❧ <span>Herbarium</span></button>
+        <button class="nav" data-page="protection">⛨ <span>Protection</span></button>
+        <button class="nav" data-page="sigils">✦ <span>Sigil Workshop</span></button>
+        <button class="nav" data-page="wheel">☼ <span>Wheel of the Year</span></button>
+        <button class="nav" data-page="tarot">▱ <span>Tarot Study</span></button>
+        <button class="nav" data-page="glossary">⌘ <span>Glossary</span></button>
+        <button class="nav" data-page="book">✎ <span>Book of Shadows</span></button>
+        <button class="nav" data-page="quiz">◇ <span>Study Quiz</span></button>
+      </nav>
+      <div class="side-note">
+        <b>Practice with care.</b>
+        <span>Spiritual correspondences are traditions and beliefs, not medical claims. Never ingest, burn, or apply an herb unless you already know it is safe for you.</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">THE VEILED GRIMOIRE</div>
+          <h2 id="pageTitle">Sanctuary</h2>
+        </div>
+        <div class="top-tools">
+          <div id="moonChip" class="moon-chip">☾ <span>Moon</span></div>
+          <button id="randomPageBtn" class="ghost-btn">Random Page</button>
+        </div>
+      </header>
+
+      <section id="home" class="page active-page">
+        <div class="hero">
+          <div class="hero-copy">
+            <div class="eyebrow">WELCOME THROUGH THE VEIL</div>
+            <h1>Learn the history. Respect the tradition. Build your own practice.</h1>
+            <p>Explore folklore, modern witchcraft, Wiccan foundations, herbs, symbolism, tarot study, protective practices, seasonal traditions, and your own private notes—all in one living grimoire.</p>
+            <div class="hero-actions">
+              <button class="primary-btn" data-jump="learn">Begin Learning</button>
+              <button class="secondary-btn" data-jump="book">Open My Book</button>
+            </div>
+          </div>
+          <div class="hero-seal">
+            <div class="seal-ring"><span>☽ ✦ ☼ ✦ ☾</span><strong>VEILED</strong></div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="card botanical"><div class="card-icon">❧</div><h3>Herbarium</h3><p>Study historical and folkloric correspondences with clear safety notes.</p><button data-jump="herbs">Browse herbs →</button></article>
+          <article class="card"><div class="card-icon">⛨</div><h3>Protection Library</h3><p>Explore grounding, boundaries, charms, visualization, cleansing traditions, and protective symbolism.</p><button data-jump="protection">Open library →</button></article>
+          <article class="card"><div class="card-icon">✦</div><h3>Sigil Workshop</h3><p>Turn an intention into a decorative personal symbol you can save to your grimoire.</p><button data-jump="sigils">Create a sigil →</button></article>
+          <article class="card"><div class="card-icon">☼</div><h3>Wheel of the Year</h3><p>Learn the eight commonly observed Wiccan sabbats and their seasonal themes.</p><button data-jump="wheel">Explore the wheel →</button></article>
+        </div>
+
+        <div class="two-col">
+          <article class="parchment-panel">
+            <div class="panel-head"><span>Daily Grimoire Prompt</span><span>✎</span></div>
+            <blockquote id="dailyPrompt"></blockquote>
+            <button id="savePrompt" class="text-btn">Save to my Book of Shadows</button>
+          </article>
+          <article class="parchment-panel">
+            <div class="panel-head"><span>Practice Compass</span><span>☾</span></div>
+            <div class="compass-list">
+              <span>History before certainty</span><span>Consent before influence</span><span>Safety before symbolism</span><span>Curiosity before claims</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="learn" class="page">
+        <div class="section-head"><div><div class="eyebrow">FOUNDATIONS</div><h1>Learning Paths</h1><p>Choose a subject and work through it in your own order. Witchcraft is broad; Wicca is one modern Pagan religion within that larger landscape.</p></div></div>
+        <div id="lessonGrid" class="lesson-grid"></div>
+        <div class="info-banner"><b>Important distinction:</b> Not all witches are Wiccan, and not all Wiccans identify with the same style of witchcraft. Traditions vary widely by community, culture, and individual practice.</div>
+      </section>
+
+      <section id="herbs" class="page">
+        <div class="section-head split"><div><div class="eyebrow">BOTANICAL FOLKLORE</div><h1>Herbarium</h1><p>Search common plants and read traditional associations alongside practical safety notes.</p></div><input id="herbSearch" class="search-input" placeholder="Search rosemary, lavender..." /></div>
+        <div class="filter-row"><button class="filter active" data-herb-filter="all">All</button><button class="filter" data-herb-filter="protection">Protection</button><button class="filter" data-herb-filter="peace">Peace</button><button class="filter" data-herb-filter="prosperity">Prosperity</button><button class="filter" data-herb-filter="clarity">Clarity</button></div>
+        <div id="herbGrid" class="herb-grid"></div>
+      </section>
+
+      <section id="protection" class="page">
+        <div class="section-head"><div><div class="eyebrow">SAFE & SYMBOLIC PRACTICE</div><h1>Protection Library</h1><p>Protective practice can be spiritual, symbolic, emotional, or practical. These entries focus on low-risk methods such as boundaries, visualization, journaling, symbols, and non-hazardous charms.</p></div></div>
+        <div id="protectionGrid" class="protection-grid"></div>
+        <div class="info-banner warning"><b>Fire / smoke note:</b> Candles, incense, smoke cleansing, and burning herbs are optional traditions—not requirements. If you are underage, have pets, asthma, smoke alarms, shared housing, or any uncertainty, use a no-flame alternative such as sound, light, water, cleaning, prayer, or visualization.</div>
+      </section>
+
+      <section id="sigils" class="page">
+        <div class="section-head"><div><div class="eyebrow">SYMBOL WORK</div><h1>Sigil Workshop</h1><p>Type a personal intention and generate a decorative symbol. The design is a creative aid, not proof of supernatural effect.</p></div></div>
+        <div class="sigil-layout">
+          <div class="sigil-controls card-flat">
+            <label>Intention</label>
+            <input id="sigilText" maxlength="80" placeholder="Example: I move through my day with calm confidence" />
+            <div class="control-grid">
+              <label>Symmetry<select id="symmetry"><option value="2">Mirror</option><option value="4" selected>Fourfold</option><option value="6">Sixfold</option><option value="8">Eightfold</option></select></label>
+              <label>Complexity<input id="complexity" type="range" min="3" max="10" value="6" /></label>
+            </div>
+            <div class="button-row"><button id="generateSigil" class="primary-btn">Generate</button><button id="randomizeSigil" class="secondary-btn">Randomize</button><button id="saveSigil" class="secondary-btn">Save to Book</button></div>
+            <p class="tiny-note">Tip: Keep intentions focused on yourself, your choices, your boundaries, or your own well-being rather than controlling another person.</p>
+          </div>
+          <div class="sigil-canvas-wrap"><canvas id="sigilCanvas" width="700" height="700"></canvas><div id="sigilWords" class="sigil-words">YOUR SYMBOL WILL APPEAR HERE</div></div>
+        </div>
+      </section>
+
+      <section id="wheel" class="page">
+        <div class="section-head"><div><div class="eyebrow">SEASONAL PRACTICE</div><h1>Wheel of the Year</h1><p>An overview of the eight sabbats commonly used in modern Wiccan and Pagan practice. Dates and customs vary by tradition and hemisphere.</p></div></div>
+        <div class="wheel-layout"><div class="wheel-visual" id="wheelVisual"></div><div id="sabbatDetail" class="parchment-panel"></div></div>
+      </section>
+
+      <section id="tarot" class="page">
+        <div class="section-head"><div><div class="eyebrow">DIVINATION STUDY</div><h1>Tarot Study Room</h1><p>Learn card symbolism and practice reflective interpretation. Tarot here is presented as a spiritual or reflective tool, not a guaranteed way to predict the future.</p></div></div>
+        <div class="tarot-layout">
+          <div class="draw-area"><div id="tarotCard" class="tarot-card"><div class="tarot-back">☾<span>VEILED</span></div></div><button id="drawTarot" class="primary-btn">Draw a Study Card</button></div>
+          <div id="tarotMeaning" class="parchment-panel"><h3>Study prompt</h3><p>Draw a card to explore its common themes, imagery, and reflective questions.</p></div>
+        </div>
+      </section>
+
+      <section id="glossary" class="page">
+        <div class="section-head split"><div><div class="eyebrow">REFERENCE</div><h1>Glossary</h1><p>Quick explanations of terms you may encounter in Wicca, modern witchcraft, folklore, and ritual study.</p></div><input id="glossarySearch" class="search-input" placeholder="Search a term..." /></div>
+        <div id="glossaryList" class="glossary-list"></div>
+      </section>
+
+      <section id="book" class="page">
+        <div class="section-head split"><div><div class="eyebrow">PRIVATE TO THIS BROWSER</div><h1>My Book of Shadows</h1><p>Your notes save locally on this device using browser storage. They are not an account or secure cloud vault.</p></div><button id="exportNotes" class="secondary-btn">Export Notes</button></div>
+        <div class="book-layout">
+          <div class="note-editor parchment-panel">
+            <input id="noteTitle" placeholder="Page title" />
+            <select id="noteCategory"><option>Journal</option><option>Study Notes</option><option>Dreams</option><option>Tarot</option><option>Herbs</option><option>Protection</option><option>Sigils</option></select>
+            <textarea id="noteBody" placeholder="Write your grimoire entry..."></textarea>
+            <button id="saveNote" class="primary-btn">Save Page</button>
+          </div>
+          <div id="noteList" class="note-list"></div>
+        </div>
+      </section>
+
+      <section id="quiz" class="page">
+        <div class="section-head"><div><div class="eyebrow">TEST YOUR KNOWLEDGE</div><h1>Study Quiz</h1><p>A short learning check based on the site's educational content.</p></div></div>
+        <div id="quizBox" class="quiz-box parchment-panel"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden"><div class="modal-card"><button id="modalClose" class="modal-close">×</button><div id="modalBody"></div></div></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="data.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
