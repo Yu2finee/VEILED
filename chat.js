@@ -98,10 +98,54 @@
       const canDelete=m.user_id===session?.user?.id||isStaff();
       const name=p.display_name||'VEILED Member';
       const sigil=(p.profile_sigil||'✦').slice(0,4);
-      return `<article class="gathering-message" data-message-id="${m.id}"><div class="gathering-sigil">${esc(sigil)}</div><div><div class="gathering-meta"><span class="gathering-name">${esc(name)}</span>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}${owner?'<span class="gathering-role">Owner</span>':admin?'<span class="gathering-role">Admin</span>':''}<span class="gathering-time">${formatTime(m.created_at)}</span></div><div class="gathering-text">${esc(m.message)}</div></div>${canDelete?`<button class="gathering-delete" data-delete-message="${m.id}" title="Delete message" aria-label="Delete message">✕</button>`:'<span></span>'}</article>`;
+      return `<article class="gathering-message" data-message-id="${m.id}"><div class="gathering-sigil">${esc(sigil)}</div><div><div class="gathering-meta"><button type="button" class="gathering-name" data-view-profile="${m.user_id}" title="View Witch Profile">${esc(name)}</button>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}${owner?'<span class="gathering-role">Owner</span>':admin?'<span class="gathering-role">Admin</span>':''}<span class="gathering-time">${formatTime(m.created_at)}</span></div><div class="gathering-text">${esc(m.message)}</div></div>${canDelete?`<button class="gathering-delete" data-delete-message="${m.id}" title="Delete message" aria-label="Delete message">✕</button>`:'<span></span>'}</article>`;
     }).join('');
     $$('[data-delete-message]').forEach(b=>b.onclick=()=>deleteMessage(b.dataset.deleteMessage));
+    $$('[data-view-profile]').forEach(b=>b.onclick=()=>openMemberProfile(b.dataset.viewProfile));
     if(scrollBottom)requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight});
+  }
+
+  async function openMemberProfile(userId){
+    if(!session&&!(await refreshIdentity())){toast('Sign in to view profiles.');return}
+    const modal=$('#modal'),body=$('#modalBody');if(!modal||!body)return;
+    body.innerHTML='<div class="gathering-profile-loading">Opening Witch Profile…</div>';
+    modal.classList.remove('hidden');
+
+    const {data:p,error}=await sb.from('profiles')
+      .select('id,display_name,profile_sigil,role,bio,practice_focus,favorite_tarot,favorite_herb,favorite_crystal,knowledge_title,profile_visibility')
+      .eq('id',userId)
+      .maybeSingle();
+
+    const own=userId===session.user.id;
+    if(error||!p||(!own&&p.profile_visibility==='private')){
+      body.innerHTML=`<div class="chat-profile-private"><div class="chat-profile-private-sigil">☾</div><div class="eyebrow">WITCH PROFILE</div><h2>Profile Veiled</h2><p>This member has chosen to keep their Witch Profile private.</p></div>`;
+      return;
+    }
+
+    const owner=p.role==='owner',admin=p.role==='admin';
+    const focuses=Array.isArray(p.practice_focus)?p.practice_focus:[];
+    const detail=(label,value)=>value?`<div class="chat-profile-detail"><span>${esc(label)}</span><b>${esc(value)}</b></div>`:'';
+    body.innerHTML=`
+      <div class="chat-profile-view">
+        <aside class="chat-profile-card">
+          <div class="chat-profile-sigil">${esc((p.profile_sigil||'✦').slice(0,4))}</div>
+          <div class="chat-profile-name-row"><h2>${esc(p.display_name||'VEILED Member')}</h2>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}</div>
+          <div class="chat-profile-title">${esc(p.knowledge_title||'Seeker')}</div>
+          ${owner?'<div class="chat-profile-role">Owner</div>':admin?'<div class="chat-profile-role">Admin</div>':''}
+        </aside>
+        <div class="chat-profile-main">
+          <div class="eyebrow">WITCH PROFILE</div>
+          <h2>About ${esc(p.display_name||'this member')}</h2>
+          <p class="chat-profile-bio">${esc(p.bio||'This member has not added a bio yet.')}</p>
+          ${focuses.length?`<div class="chat-profile-focus"><h3>Practice interests</h3><div>${focuses.map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`:''}
+          <div class="chat-profile-details">
+            ${detail('Favorite tarot card',p.favorite_tarot)}
+            ${detail('Favorite herb',p.favorite_herb)}
+            ${detail('Favorite crystal',p.favorite_crystal)}
+          </div>
+          <div class="chat-profile-privacy">☾ Visible to signed-in VEILED members</div>
+        </div>
+      </div>`;
   }
 
   async function sendMessage(e){
