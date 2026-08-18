@@ -1,189 +1,59 @@
 (()=>{
-  const sb=window.VEILED_SUPABASE;
-  if(!sb)return;
+  const sb=window.VEILED_SUPABASE;if(!sb)return;
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  let session=null,currentProfile=null,channel=null,messages=[],profiles=new Map(),opening=false;
+  let session=null,currentProfile=null,channel=null,messages=[],profiles=new Map(),opening=false,replyingTo=null,chatSettings={locked:false,slow_mode_seconds:2,guidelines_version:1},typingTimers=new Map(),lastTypingSent=0;
 
-  function toast(msg){
-    const old=document.querySelector('.platform-toast');if(old)old.remove();
-    const d=document.createElement('div');d.className='platform-toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2300);
-  }
-
-  async function refreshIdentity(){
-    const {data:{session:s}}=await sb.auth.getSession();session=s;
-    if(!s)return false;
-    const {data:p}=await sb.from('profiles').select('id,display_name,profile_sigil,role,status').eq('id',s.user.id).single();
-    currentProfile=p||null;return true;
-  }
-
+  function toast(msg){const old=$('.platform-toast');old?.remove();const d=document.createElement('div');d.className='platform-toast';d.textContent=msg;document.body.appendChild(d);setTimeout(()=>d.remove(),2300)}
+  function handle(name){return String(name||'member').replace(/\s+/g,'').replace(/[^A-Za-z0-9_]/g,'').slice(0,24)||'member'}
+  async function refreshIdentity(){const {data:{session:s}}=await sb.auth.getSession();session=s;if(!s)return false;const {data:p}=await sb.from('profiles').select('id,display_name,profile_sigil,role,status,bio,practice_focus,favorite_tarot,favorite_herb,favorite_crystal,profile_visibility,knowledge_title').eq('id',s.user.id).single();currentProfile=p||null;if(p)profiles.set(p.id,p);return true}
   function isStaff(){return ['owner','admin'].includes(currentProfile?.role)}
 
   function addChatPage(){
-    if($('#gathering'))return;
-    const nav=$('.sidebar nav'),main=$('.main');if(!nav||!main)return;
-    const protectionBtn=$('.nav[data-page="protection"]');
-    const chatBtnHtml=`<button class="nav" data-page="gathering">✦ <span>The Gathering</span><i class="chat-dot"></i></button>`;
-    if(protectionBtn) protectionBtn.insertAdjacentHTML('afterend',chatBtnHtml);
-    else nav.insertAdjacentHTML('beforeend',chatBtnHtml);
-    main.insertAdjacentHTML('beforeend',`
-      <section id="gathering" class="page">
-        <div class="section-head"><div><div class="eyebrow">VEILED COMMUNITY</div><h1>The Gathering</h1><p>One shared room for VEILED members to talk, study, and help each other. Messages appear live without refreshing the page.</p></div></div>
-        <div class="gathering-shell">
-          <div>
-            <div class="gathering-head"><div><h3>✦ The Gathering</h3><p>Community chat · text only</p></div><div class="gathering-live"><i></i> Realtime connected</div></div>
-            <div class="gathering-notice"><b>Keep the Veil welcoming.</b> Don't post private information, harassment, or unsafe advice. Owners/admins can remove messages.</div>
-          </div>
-          <div id="gatheringMessages" class="gathering-messages"><div class="gathering-loading">Opening The Gathering…</div></div>
-          <form id="gatheringForm" class="gathering-compose">
-            <div class="gathering-compose-row">
-              <div class="gathering-input-wrap"><textarea id="gatheringInput" maxlength="500" rows="1" placeholder="Send a message through the Veil…"></textarea><div class="gathering-compose-foot"><span>Enter to send · Shift+Enter for a new line</span><span id="gatheringCount">0 / 500</span></div></div>
-              <button class="primary-btn gathering-send" type="submit">Send ✦</button>
-            </div>
-          </form>
-        </div>
-      </section>`);
-    const btn=$(`.nav[data-page="gathering"]`);if(btn)btn.addEventListener('click',openGathering);
-    const form=$('#gatheringForm'),input=$('#gatheringInput');
-    form?.addEventListener('submit',sendMessage);
-    input?.addEventListener('input',()=>{const c=$('#gatheringCount');if(c)c.textContent=`${input.value.length} / 500`;autoGrow(input)});
-    input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();form?.requestSubmit()}});
+    if($('#gathering'))return;const nav=$('.sidebar nav'),main=$('.main');if(!nav||!main)return;
+    const protectionBtn=$('.nav[data-page="protection"]');const html=`<button class="nav" data-page="gathering">✦ <span>The Gathering</span><i class="chat-dot"></i></button>`;protectionBtn?protectionBtn.insertAdjacentHTML('afterend',html):nav.insertAdjacentHTML('beforeend',html);
+    main.insertAdjacentHTML('beforeend',`<section id="gathering" class="page"><div class="section-head"><div><div class="eyebrow">VEILED COMMUNITY</div><h1>The Gathering</h1><p>One shared room for VEILED members. Text only, realtime, and messages are retained for 7 days.</p></div></div><div class="gathering-shell"><div><div class="gathering-head"><div><h3>✦ The Gathering</h3><p>Community chat · 7-day retention</p></div><div class="gathering-head-actions"><div class="gathering-live"><i></i> Connecting…</div><button id="chatControlsBtn" class="secondary-btn hidden">Chat Controls</button></div></div><div class="gathering-notice"><b>Keep the Veil welcoming.</b> Don't post private information, harassment, or unsafe advice. Use @name to mention someone.</div></div><div id="gatheringMessages" class="gathering-messages"><div class="gathering-loading">Opening The Gathering…</div></div><div><div id="typingIndicator" class="typing-indicator"></div><div id="replyPreview" class="reply-preview hidden"></div><form id="gatheringForm" class="gathering-compose"><div class="gathering-compose-row"><div class="gathering-input-wrap"><textarea id="gatheringInput" maxlength="500" rows="1" placeholder="Send a message through the Veil…"></textarea><div class="gathering-compose-foot"><span>Enter to send · Shift+Enter for a new line</span><span id="gatheringCount">0 / 500</span></div></div><button class="primary-btn gathering-send" type="submit">Send ✦</button></div></form></div></div></section>`);
+    $(`.nav[data-page="gathering"]`)?.addEventListener('click',openGathering);$('#gatheringForm')?.addEventListener('submit',sendMessage);$('#chatControlsBtn')?.addEventListener('click',openChatControls);
+    const input=$('#gatheringInput');input?.addEventListener('input',()=>{if($('#gatheringCount'))$('#gatheringCount').textContent=`${input.value.length} / 500`;autoGrow(input);broadcastTyping()});input?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#gatheringForm')?.requestSubmit()}})
   }
-
   function autoGrow(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px'}
+  function showPage(){$$('.page').forEach(p=>p.classList.toggle('active-page',p.id==='gathering'));$$('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page==='gathering'));if($('#pageTitle'))$('#pageTitle').textContent='The Gathering';window.scrollTo({top:0,behavior:'smooth'})}
 
-  function showPage(){
-    $$('.page').forEach(p=>p.classList.toggle('active-page',p.id==='gathering'));
-    $$('.nav').forEach(n=>n.classList.toggle('active',n.dataset.page==='gathering'));
-    if($('#pageTitle'))$('#pageTitle').textContent='The Gathering';
-    window.scrollTo({top:0,behavior:'smooth'});
-  }
+  async function openGathering(){showPage();if(opening)return;opening=true;try{const ok=await refreshIdentity();if(!ok){$('#gatheringMessages').innerHTML='<div class="gathering-empty"><strong>The Gathering is sealed.</strong>Sign in to join the community chat.</div>';return}await Promise.all([loadSettings(),sb.rpc('cleanup_old_chat_messages')]);$('#chatControlsBtn')?.classList.toggle('hidden',!isStaff());const accepted=await ensureGuidelines();if(!accepted)return;await loadMessages();subscribeRealtime()}finally{opening=false}}
+  async function loadSettings(){const {data}=await sb.from('chat_settings').select('*').eq('id',1).single();if(data)chatSettings=data;updateComposerState()}
+  function updateComposerState(){const input=$('#gatheringInput'),btn=$('.gathering-send');if(!input||!btn)return;const blocked=!!chatSettings.locked&&!isStaff();input.disabled=blocked;btn.disabled=blocked;input.placeholder=blocked?'The Gathering is temporarily locked by VEILED staff.':'Send a message through the Veil…'}
 
-  async function openGathering(){
-    showPage();
-    if(opening)return;opening=true;
-    try{
-      const ok=await refreshIdentity();
-      if(!ok){$('#gatheringMessages').innerHTML='<div class="gathering-empty"><strong>The Gathering is sealed.</strong>Sign in to join the community chat.</div>';return}
-      await loadMessages();
-      subscribeRealtime();
-    }finally{opening=false}
-  }
+  async function ensureGuidelines(){const v=chatSettings.guidelines_version||1;const {data}=await sb.from('chat_guidelines_acceptance').select('guidelines_version').eq('user_id',session.user.id).maybeSingle();if(data?.guidelines_version>=v)return true;return new Promise(resolve=>{const modal=$('#modal'),body=$('#modalBody');body.innerHTML=`<div class="guidelines-modal"><div class="eyebrow">BEFORE YOU ENTER</div><h2>The Gathering Guidelines</h2><p>The Gathering is a shared VEILED community space. Keep conversations respectful and safe.</p><div class="guidelines-list"><div>✦ Do not share private information such as addresses, phone numbers, school details, passwords, or account credentials.</div><div>✦ No harassment, bullying, threats, hate speech, or targeting another member.</div><div>✦ Do not pressure people into spiritual practices or present personal beliefs as guaranteed facts.</div><div>✦ No unsafe instructions, dangerous challenges, sexual content, or illegal activity.</div><div>✦ Use Report Message when something needs staff attention instead of escalating arguments.</div></div><button id="acceptGuidelines" class="primary-btn">I Agree · Enter The Gathering</button><button id="leaveGuidelines" class="secondary-btn">Not Now</button></div>`;modal.classList.remove('hidden');$('#acceptGuidelines').onclick=async()=>{const {error}=await sb.from('chat_guidelines_acceptance').upsert({user_id:session.user.id,guidelines_version:v,accepted_at:new Date().toISOString()});if(error){toast('Could not save your agreement.');return}modal.classList.add('hidden');resolve(true)};$('#leaveGuidelines').onclick=()=>{modal.classList.add('hidden');resolve(false)}})}
 
-  async function loadProfiles(ids){
-    const missing=[...new Set(ids)].filter(Boolean).filter(id=>!profiles.has(id));
-    if(!missing.length)return;
-    const {data}=await sb.from('profiles').select('id,display_name,profile_sigil,role,status').in('id',missing);
-    (data||[]).forEach(p=>profiles.set(p.id,p));
-  }
-
-  async function loadMessages(){
-    const box=$('#gatheringMessages');if(!box)return;
-    const {data,error}=await sb.from('chat_messages').select('id,user_id,message,created_at').order('created_at',{ascending:false}).limit(60);
-    if(error){box.innerHTML='<div class="gathering-empty"><strong>Chat unavailable.</strong>The Gathering could not be opened right now.</div>';return}
-    messages=(data||[]).reverse();
-    await loadProfiles(messages.map(m=>m.user_id));
-    renderMessages(true);
-  }
-
-  function formatTime(v){const d=new Date(v);return d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+  async function loadProfiles(ids){const missing=[...new Set(ids)].filter(Boolean).filter(id=>!profiles.has(id));if(!missing.length)return;const {data}=await sb.from('profiles').select('id,display_name,profile_sigil,role,status,bio,practice_focus,favorite_tarot,favorite_herb,favorite_crystal,profile_visibility,knowledge_title').in('id',missing);(data||[]).forEach(p=>profiles.set(p.id,p))}
+  async function loadMessages(){const box=$('#gatheringMessages');if(!box)return;const cutoff=new Date(Date.now()-7*86400000).toISOString();const {data,error}=await sb.from('chat_messages').select('id,user_id,message,created_at,reply_to').gte('created_at',cutoff).order('created_at',{ascending:false}).limit(60);if(error){box.innerHTML='<div class="gathering-empty"><strong>Chat unavailable.</strong>The Gathering could not be opened right now.</div>';return}messages=(data||[]).reverse();await loadProfiles(messages.map(m=>m.user_id));renderMessages(true)}
+  function formatTime(v){return new Date(v).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+  function dayKey(v){const d=new Date(v);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
+  function dayLabel(v){const d=new Date(v),today=new Date(),y=new Date(Date.now()-86400000);if(dayKey(d)===dayKey(today))return'Today';if(dayKey(d)===dayKey(y))return'Yesterday';return d.toLocaleDateString([],{month:'long',day:'numeric',year:d.getFullYear()!==today.getFullYear()?'numeric':undefined})}
+  function renderText(text){let out=esc(text);const known=[...profiles.values()].map(p=>({h:handle(p.display_name).toLowerCase()}));out=out.replace(/@([A-Za-z0-9_]{1,24})/g,(full,h)=>known.some(x=>x.h===h.toLowerCase())?`<span class="mention">@${esc(h)}</span>`:full);return out}
 
   function renderMessages(scrollBottom=false){
-    const box=$('#gatheringMessages');if(!box)return;
-    if(!messages.length){box.innerHTML='<div class="gathering-empty"><strong>The room is quiet.</strong>Be the first person to speak through the Veil.</div>';return}
-    box.innerHTML=messages.map(m=>{
-      const p=profiles.get(m.user_id)||{};
-      const owner=p.role==='owner';
-      const admin=p.role==='admin';
-      const canDelete=m.user_id===session?.user?.id||isStaff();
-      const name=p.display_name||'VEILED Member';
-      const sigil=(p.profile_sigil||'✦').slice(0,4);
-      return `<article class="gathering-message" data-message-id="${m.id}"><div class="gathering-sigil">${esc(sigil)}</div><div><div class="gathering-meta"><button type="button" class="gathering-name" data-view-profile="${m.user_id}" title="View Witch Profile">${esc(name)}</button>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}${owner?'<span class="gathering-role">Owner</span>':admin?'<span class="gathering-role">Admin</span>':''}<span class="gathering-time">${formatTime(m.created_at)}</span></div><div class="gathering-text">${esc(m.message)}</div></div>${canDelete?`<button class="gathering-delete" data-delete-message="${m.id}" title="Delete message" aria-label="Delete message">✕</button>`:'<span></span>'}</article>`;
-    }).join('');
-    $$('[data-delete-message]').forEach(b=>b.onclick=()=>deleteMessage(b.dataset.deleteMessage));
-    $$('[data-view-profile]').forEach(b=>b.onclick=()=>openMemberProfile(b.dataset.viewProfile));
-    if(scrollBottom)requestAnimationFrame(()=>{box.scrollTop=box.scrollHeight});
+    const box=$('#gatheringMessages');if(!box)return;if(!messages.length){box.innerHTML='<div class="gathering-empty"><strong>The room is quiet.</strong>Be the first person to speak through the Veil.</div>';return}
+    let html='',lastDay='',prev=null;
+    messages.forEach(m=>{const p=profiles.get(m.user_id)||{},owner=p.role==='owner',admin=p.role==='admin',name=p.display_name||'VEILED Member',sigil=(p.profile_sigil||'✦').slice(0,4),canDelete=m.user_id===session?.user?.id||isStaff();const day=dayKey(m.created_at);if(day!==lastDay){html+=`<div class="date-separator"><span>${dayLabel(m.created_at)}</span></div>`;lastDay=day;prev=null}const grouped=prev&&prev.user_id===m.user_id&&(new Date(m.created_at)-new Date(prev.created_at)<5*60000);const reply=messages.find(x=>String(x.id)===String(m.reply_to));const rp=reply?profiles.get(reply.user_id):null;html+=`<article class="gathering-message ${grouped?'grouped':''}" data-message-id="${m.id}">${grouped?'<div></div>':`<div class="gathering-sigil">${esc(sigil)}</div>`}<div>${grouped?'':`<div class="gathering-meta"><button class="gathering-name" data-profile-user="${m.user_id}">${esc(name)}</button>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}${owner?'<span class="gathering-role">Owner</span>':admin?'<span class="gathering-role">Admin</span>':''}<span class="gathering-handle">@${esc(handle(name))}</span><span class="gathering-time">${formatTime(m.created_at)}</span></div>`}${reply?`<div class="reply-quote"><b>${esc(rp?.display_name||'Member')}</b> ${esc(reply.message.slice(0,110))}</div>`:''}<div class="gathering-text">${renderText(m.message)}</div><div class="message-actions"><button data-reply-message="${m.id}">Reply</button>${m.user_id!==session?.user?.id?`<button data-report-message="${m.id}">Report</button>`:''}</div></div>${canDelete?`<button class="gathering-delete" data-delete-message="${m.id}" title="Delete message">✕</button>`:'<span></span>'}</article>`;prev=m});
+    box.innerHTML=html;$$('[data-delete-message]').forEach(b=>b.onclick=()=>deleteMessage(b.dataset.deleteMessage));$$('[data-reply-message]').forEach(b=>b.onclick=()=>setReply(b.dataset.replyMessage));$$('[data-report-message]').forEach(b=>b.onclick=()=>reportMessage(b.dataset.reportMessage));$$('[data-profile-user]').forEach(b=>b.onclick=()=>openMemberProfile(b.dataset.profileUser));if(scrollBottom)requestAnimationFrame(()=>box.scrollTop=box.scrollHeight)
   }
 
-  async function openMemberProfile(userId){
-    if(!session&&!(await refreshIdentity())){toast('Sign in to view profiles.');return}
-    const modal=$('#modal'),body=$('#modalBody');if(!modal||!body)return;
-    body.innerHTML='<div class="gathering-profile-loading">Opening Witch Profile…</div>';
-    modal.classList.remove('hidden');
+  function setReply(id){replyingTo=messages.find(m=>String(m.id)===String(id))||null;const p=replyingTo?profiles.get(replyingTo.user_id):null,box=$('#replyPreview');if(!replyingTo||!box)return;box.classList.remove('hidden');box.innerHTML=`<div><span>Replying to <b>${esc(p?.display_name||'Member')}</b></span><small>${esc(replyingTo.message.slice(0,130))}</small></div><button id="cancelReply">✕</button>`;$('#cancelReply').onclick=()=>{replyingTo=null;box.classList.add('hidden');box.innerHTML=''};$('#gatheringInput')?.focus()}
 
-    const {data:p,error}=await sb.from('profiles')
-      .select('id,display_name,profile_sigil,role,bio,practice_focus,favorite_tarot,favorite_herb,favorite_crystal,knowledge_title,profile_visibility')
-      .eq('id',userId)
-      .maybeSingle();
+  async function sendMessage(e){e.preventDefault();if(!session&&!(await refreshIdentity())){toast('Sign in to chat.');return}const input=$('#gatheringInput'),btn=$('.gathering-send');if(!input)return;const text=input.value.trim();if(!text)return;if(text.length>500){toast('Messages can be up to 500 characters.');return}btn.disabled=true;const {error}=await sb.from('chat_messages').insert({user_id:session.user.id,message:text,reply_to:replyingTo?.id||null});btn.disabled=false;if(error){toast(error.message.includes('locked')?'The Gathering is currently locked.':error.message.includes('wait')?'Slow mode is active. Wait a moment before sending again.':'Message could not be sent.');return}input.value='';autoGrow(input);if($('#gatheringCount'))$('#gatheringCount').textContent='0 / 500';replyingTo=null;$('#replyPreview')?.classList.add('hidden')}
+  async function deleteMessage(id){const {error}=await sb.from('chat_messages').delete().eq('id',id);if(error)toast('Message could not be deleted.')}
+  async function reportMessage(id){const m=messages.find(x=>String(x.id)===String(id));if(!m)return;const p=profiles.get(m.user_id);const {error}=await sb.from('owner_inbox').insert({user_id:session.user.id,category:'other',subject:`Chat report: ${p?.display_name||'Member'}`,message:`Reported Gathering message #${m.id}\nSender: ${p?.display_name||'Member'}\nMessage: ${m.message}`});toast(error?'Report could not be sent.':'Message reported to VEILED staff.')}
 
-    const own=userId===session.user.id;
-    if(error||!p||(!own&&p.profile_visibility==='private')){
-      body.innerHTML=`<div class="chat-profile-private"><div class="chat-profile-private-sigil">☾</div><div class="eyebrow">WITCH PROFILE</div><h2>Profile Veiled</h2><p>This member has chosen to keep their Witch Profile private.</p></div>`;
-      return;
-    }
+  async function openMemberProfile(userId){let p=profiles.get(userId);if(!p){await loadProfiles([userId]);p=profiles.get(userId)}if(!p)return;const own=userId===session?.user?.id,visible=own||p.profile_visibility==='members';const modal=$('#modal'),body=$('#modalBody');if(!visible){body.innerHTML=`<div class="profile-view-modal private-profile"><div class="profile-view-sigil">${esc(p.profile_sigil||'✦')}</div><div class="eyebrow">WITCH PROFILE</div><h2>Profile Veiled</h2><p>This member has chosen to keep their Witch Profile private.</p></div>`}else{const owner=p.role==='owner',admin=p.role==='admin';body.innerHTML=`<div class="profile-view-modal"><div class="profile-view-sigil">${esc(p.profile_sigil||'✦')}</div><div class="eyebrow">WITCH PROFILE</div><h2>${esc(p.display_name||'VEILED Member')} ${owner?'👑':''}</h2><div class="profile-view-role">${esc(owner?'Owner':admin?'Admin':p.knowledge_title||'Member')}</div>${p.bio?`<p class="profile-view-bio">${esc(p.bio)}</p>`:''}${(p.practice_focus||[]).length?`<div class="profile-view-tags">${p.practice_focus.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:''}<div class="profile-view-favorites">${p.favorite_tarot?`<div><small>Favorite Tarot</small><b>${esc(p.favorite_tarot)}</b></div>`:''}${p.favorite_herb?`<div><small>Favorite Herb</small><b>${esc(p.favorite_herb)}</b></div>`:''}${p.favorite_crystal?`<div><small>Favorite Crystal</small><b>${esc(p.favorite_crystal)}</b></div>`:''}</div></div>`}modal.classList.remove('hidden')}
 
-    const owner=p.role==='owner',admin=p.role==='admin';
-    const focuses=Array.isArray(p.practice_focus)?p.practice_focus:[];
-    const detail=(label,value)=>value?`<div class="chat-profile-detail"><span>${esc(label)}</span><b>${esc(value)}</b></div>`:'';
-    body.innerHTML=`
-      <div class="chat-profile-view">
-        <aside class="chat-profile-card">
-          <div class="chat-profile-sigil">${esc((p.profile_sigil||'✦').slice(0,4))}</div>
-          <div class="chat-profile-name-row"><h2>${esc(p.display_name||'VEILED Member')}</h2>${owner?'<span class="gathering-crown" title="VEILED Owner">👑</span>':''}</div>
-          <div class="chat-profile-title">${esc(p.knowledge_title||'Seeker')}</div>
-          ${owner?'<div class="chat-profile-role">Owner</div>':admin?'<div class="chat-profile-role">Admin</div>':''}
-        </aside>
-        <div class="chat-profile-main">
-          <div class="eyebrow">WITCH PROFILE</div>
-          <h2>About ${esc(p.display_name||'this member')}</h2>
-          <p class="chat-profile-bio">${esc(p.bio||'This member has not added a bio yet.')}</p>
-          ${focuses.length?`<div class="chat-profile-focus"><h3>Practice interests</h3><div>${focuses.map(x=>`<span>${esc(x)}</span>`).join('')}</div></div>`:''}
-          <div class="chat-profile-details">
-            ${detail('Favorite tarot card',p.favorite_tarot)}
-            ${detail('Favorite herb',p.favorite_herb)}
-            ${detail('Favorite crystal',p.favorite_crystal)}
-          </div>
-          <div class="chat-profile-privacy">☾ Visible to signed-in VEILED members</div>
-        </div>
-      </div>`;
-  }
+  function broadcastTyping(){if(!channel||!session)return;const now=Date.now();if(now-lastTypingSent<900)return;lastTypingSent=now;channel.send({type:'broadcast',event:'typing',payload:{user_id:session.user.id,name:currentProfile?.display_name||'Member'}})}
+  function receiveTyping(payload){if(!payload?.user_id||payload.user_id===session?.user?.id)return;if(!profiles.has(payload.user_id))profiles.set(payload.user_id,{id:payload.user_id,display_name:payload.name});clearTimeout(typingTimers.get(payload.user_id));typingTimers.set(payload.user_id,setTimeout(()=>{typingTimers.delete(payload.user_id);renderTyping()},2400));renderTyping()}
+  function renderTyping(){const box=$('#typingIndicator');if(!box)return;const names=[...typingTimers.keys()].map(id=>profiles.get(id)?.display_name||'Someone');box.textContent=!names.length?'':names.length===1?`${names[0]} is typing…`:`${names.slice(0,2).join(' and ')} are typing…`}
 
-  async function sendMessage(e){
-    e.preventDefault();
-    if(!session&&!(await refreshIdentity())){toast('Sign in to chat.');return}
-    const input=$('#gatheringInput'),btn=$('.gathering-send');if(!input)return;
-    const text=input.value.trim();if(!text)return;if(text.length>500){toast('Messages can be up to 500 characters.');return}
-    btn.disabled=true;
-    const {error}=await sb.from('chat_messages').insert({user_id:session.user.id,message:text});
-    btn.disabled=false;
-    if(error){toast(error.message.includes('wait a moment')?'Wait a moment before sending again.':'Message could not be sent.');return}
-    input.value='';autoGrow(input);if($('#gatheringCount'))$('#gatheringCount').textContent='0 / 500';
-  }
+  async function openChatControls(){if(!isStaff())return;await loadSettings();const modal=$('#modal'),body=$('#modalBody');body.innerHTML=`<div class="chat-controls-modal"><div class="eyebrow">OWNER CHAT CONTROLS</div><h2>The Gathering</h2><label>Chat access<select id="chatLocked"><option value="false" ${!chatSettings.locked?'selected':''}>Open</option><option value="true" ${chatSettings.locked?'selected':''}>Locked for members</option></select></label><label>Slow mode<select id="chatSlow">${[0,2,5,10,15,30,60].map(n=>`<option value="${n}" ${Number(chatSettings.slow_mode_seconds)===n?'selected':''}>${n===0?'Off':n+' seconds'}</option>`).join('')}</select></label><p class="mini-stat">Owners and admins can still send messages while chat is locked. Messages older than 7 days are automatically removed.</p><button id="saveChatControls" class="primary-btn">Save Chat Controls</button></div>`;modal.classList.remove('hidden');$('#saveChatControls').onclick=async()=>{const payload={locked:$('#chatLocked').value==='true',slow_mode_seconds:Number($('#chatSlow').value),updated_at:new Date().toISOString()};const {error}=await sb.from('chat_settings').update(payload).eq('id',1);if(error){toast('Chat settings could not be saved.');return}chatSettings={...chatSettings,...payload};updateComposerState();modal.classList.add('hidden');toast('Gathering controls updated.')}}
 
-  async function deleteMessage(id){
-    const {error}=await sb.from('chat_messages').delete().eq('id',id);
-    if(error){toast('Message could not be deleted.');return}
-  }
-
-  function subscribeRealtime(){
-    if(channel)return;
-    channel=sb.channel('veiled-the-gathering')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'},async payload=>{
-        const m=payload.new;
-        if(messages.some(x=>String(x.id)===String(m.id)))return;
-        await loadProfiles([m.user_id]);messages.push(m);if(messages.length>100)messages.shift();renderMessages(true);
-      })
-      .on('postgres_changes',{event:'DELETE',schema:'public',table:'chat_messages'},payload=>{
-        messages=messages.filter(m=>String(m.id)!==String(payload.old.id));renderMessages(false);
-      })
-      .subscribe(status=>{const live=$('.gathering-live');if(!live)return;live.innerHTML=status==='SUBSCRIBED'?'<i></i> Realtime connected':'<i></i> Connecting…'});
-  }
-
-  async function init(){
-    addChatPage();
-    await refreshIdentity();
-  }
-
-  setTimeout(init,450);
-  sb.auth.onAuthStateChange(()=>setTimeout(refreshIdentity,120));
+  function subscribeRealtime(){if(channel)return;channel=sb.channel('veiled-the-gathering',{config:{broadcast:{self:false}}}).on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'},async payload=>{const m=payload.new;if(messages.some(x=>String(x.id)===String(m.id)))return;await loadProfiles([m.user_id]);messages.push(m);if(messages.length>100)messages.shift();renderMessages(true)}).on('postgres_changes',{event:'DELETE',schema:'public',table:'chat_messages'},payload=>{messages=messages.filter(m=>String(m.id)!==String(payload.old.id));renderMessages(false)}).on('broadcast',{event:'typing'},({payload})=>receiveTyping(payload)).subscribe(status=>{const live=$('.gathering-live');if(live)live.innerHTML=status==='SUBSCRIBED'?'<i></i> Realtime connected':'<i></i> Connecting…'})}
+  async function init(){addChatPage();await refreshIdentity()}
+  setTimeout(init,450);sb.auth.onAuthStateChange(()=>setTimeout(refreshIdentity,120));
 })();
